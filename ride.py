@@ -1,9 +1,9 @@
 
 
 
-
 class Ride(object):
-    def __init__(self, origin, destination, arriveBy, passengers, notificationTime):
+    def __init__(self, person, origin, destination, arriveBy, passengers, notificationTime):
+        self.person = person
         self.notificationTime = notificationTime
         self.origin = origin
         self.destination = destination
@@ -11,4 +11,7 @@ class Ride(object):
         self.passengers = passengers
 
     def __lt__(self, other):
-        return self.notificationTime < other.notificationTime
+        return self.arriveBy < other.arriveBy
+
+    def rescheduleNotificationTime(self, minTime):
+        pass
