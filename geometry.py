@@ -1,14 +1,13 @@
 import pycristoforo as pyc
 
 from geopy.distance import distance
-import itertools
 
+from scipy.stats import gamma
+import random
+import math
 
-def pairwise(iterable):
-    "s -> (s0,s1), (s1,s2), (s2, s3), ..."
-    a, b = itertools.tee(iterable)
-    next(b, None)
-    return zip(a, b)
+from shapely.geometry import Point
+
 
 BE = pyc.get_shape("Belgium")
 
@@ -17,18 +16,18 @@ def convertPoint(point):
     return tuple(reversed(point['geometry']['coordinates']))
 
 
-def distancePoints(point1, point2):
-    p1 = convertPoint(point1)
-    p2 = convertPoint(point2)
-    return distance(p1, p2).km
+def sampleRandomLocation():
+    points = pyc.geoloc_generation(BE, 1, "Belgium")
+    return convertPoint(points[0])
 
 
-def generatePoints(maxDistance, amount):
-    result = list()
+def sampleLocationNear(origin, distanceScale=1):
+    while True:
+        angle = random.uniform(0, 2 * math.pi)
+        distance = gamma.rvs(a=2, loc=0.01, scale=0.1 * distanceScale)
+        point = (origin[0] + math.cos(angle) * distance, origin[1] + math.sin(angle) * distance)
 
-    while len(result) < amount:
-        points = pyc.geoloc_generation(BE, min(20, amount), "Belgium")
-        # TODO: finish
-
-
+        # Check if on land
+        if BE.contains(Point(*reversed(point))):
+            return point
 

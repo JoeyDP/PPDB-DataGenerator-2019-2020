@@ -5,20 +5,19 @@ from os.path import isfile
 from datetime import timedelta
 from util import daterange
 
+import geometry
+
 
 class Person(object):
-    def __init__(self, firstname, lastname, password, wakeTime=7.5, sleepTime=20.0, tripTime=8.0):
+    def __init__(self, firstname, lastname, username, password, home):
         self.firstname = firstname
         self.lastname = lastname
-        self.username = firstname + "_" + lastname
+        self.username = username
 
         self.password = password
 
-        self.locations = list()
-
-        self.wakeTime = wakeTime
-        self.sleepTime = sleepTime
-        self.tripTime = tripTime
+        self.home = home
+        self.activities = list()
 
     def __eq__(self, other):
         return self.username == other.username
@@ -30,7 +29,7 @@ class Person(object):
         return self.username
 
     def __str__(self):
-        return self.username
+        return f"{self.firstname} {self.lastname} ({self.username})"
 
     @staticmethod
     def loadFrom(path):
@@ -38,7 +37,7 @@ class Person(object):
         return person
 
     def saveTo(self, directory):
-        pickle.dump(self, open(os.path.join(directory, self.username), "wb"))
+        pickle.dump(self, open(os.path.join(directory, str(self.username) + ".pickle"), "wb"))
 
     @staticmethod
     def loadAllFrom(directory):
@@ -47,23 +46,53 @@ class Person(object):
         return people
 
 
+WORK_DISTANCE_SCALE = 1
+HOBBY_DISTANCE_SCALE = 0.8
+
+
+class WorkerPerson(Person):
+    def __init__(self, firstname, lastname, username, password, home, amountHobbies):
+        super().__init__(firstname, lastname, username, password, home)
+
+        self.work = geometry.sampleLocationNear(self.home, WORK_DISTANCE_SCALE)
+
+        # self.activities.append(Activity(startTime, duration, [self.work]))
+        #
+        # hobbyLocations = [geometry.sampleLocationNear(self.home, HOBBY_DISTANCE_SCALE) for _ in range(amountHobbies)]
+        # self.activities.append(Activity(startTime, duration, hobbyLocations))
+
+    @staticmethod
+    def generate(self):
+        pass
+
+
 class PersonRides(object):
     def __init__(self, person):
         self.person = person
         self.rides = list()
         self.lastGeneratedDay = None
 
-    def generateUntil(self, endDay, minStartDay=None):
+    def generateUntil(self, endDay, minStartTime=None):
         """ Generate rides for all days from max(minStartDay, lastGeneratedDay) until endDay. """
-        assert not (self.lastGeneratedDay is None and minStartDay is None), "Need some starting point."
+        assert not (self.lastGeneratedDay is None and minStartTime is None), "Need some starting point."
         if self.lastGeneratedDay is None:
-            startDay = minStartDay
+            startDay = minStartTime.date()
         else:
-            startDay = max(minStartDay, self.lastGeneratedDay)
+            startDay = max(minStartTime.date(), self.lastGeneratedDay + timedelta(1))
 
-        for day in daterange(startDay + timedelta(1), endDay + timedelta(1)):
-            self.generateDay(day)
+        for day in daterange(startDay, endDay):
+            self.generateDay(day, minStartTime)
             self.lastGeneratedDay = day
 
-    def generateDay(self, day):
-        print(f"Generating day: {day}")
+    def generateDay(self, day, minTimeNotification):
+        # print(f"Generating day: {day}")
+        pass
+
+
+class Activity(object):
+    def __init__(self, startTime, duration, locations):
+        self.startTime = startTime
+        self.duration = duration
+        self.locations = locations
+
+

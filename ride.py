@@ -15,3 +15,4 @@ class Ride(object):
 
     def rescheduleNotificationTime(self, minTime):
         pass
+        # self.person

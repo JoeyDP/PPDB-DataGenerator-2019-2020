@@ -19,4 +19,7 @@ mkdir -p "$USER_DIR"
 
 . env/bin/activate
 
-python3 simulator.py run "$DIR"
+python3 generator.py generatePeople "$USER_DIR" --amount 20
+
+
+

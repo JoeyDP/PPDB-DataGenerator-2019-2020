@@ -22,9 +22,9 @@ RETRY_DELAY = timedelta(minutes=5)
 
 
 def generateRides(people, endDay):
-    minStartDay = date.today()
+    minStartTime = datetime.now()
     for person in people:
-        person.generateUntil(endDay, minStartDay=minStartDay)
+        person.generateUntil(endDay, minStartTime=minStartTime)
 
 
 def sleep(sleeptime):
