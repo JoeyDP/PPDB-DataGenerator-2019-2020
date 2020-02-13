@@ -5,7 +5,8 @@ import time
 
 import bacli
 
-from person import Person, PersonRides
+from person import Person
+from ride import PersonRides
 
 from datetime import date, datetime, timedelta
 
