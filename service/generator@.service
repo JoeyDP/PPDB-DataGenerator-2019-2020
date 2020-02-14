@@ -5,8 +5,9 @@ After=network-online.target
 
 [Service]
 User=generator
+WorkingDirectory=/home/generator/script/
 ExecStart=/home/generator/script/runSimulator.sh %I
 Restart=always
 
 [Install]
-WantedBy=multi-user.target 
+WantedBy=multi-user.target
