@@ -5,9 +5,11 @@ from geopy.distance import distance
 from scipy.stats import gamma
 import random
 import math
+import logging
 
 from shapely.geometry import Point
 
+from settings import MAX_ATTEMPTS
 
 BE = pyc.get_shape("Belgium")
 
@@ -22,7 +24,7 @@ def sampleRandomLocation():
 
 
 def sampleLocationNear(origin, distanceScale=1):
-    while True:
+    for _ in range(MAX_ATTEMPTS):
         angle = random.uniform(0, 2 * math.pi)
         distance = gamma.rvs(a=2, loc=0.01, scale=0.1 * distanceScale)
         point = (origin[0] + math.cos(angle) * distance, origin[1] + math.sin(angle) * distance)
@@ -31,3 +33,5 @@ def sampleLocationNear(origin, distanceScale=1):
         if BE.contains(Point(*reversed(point))):
             return point
 
+    logging.error(f"Couldn't sample random point near {origin} with scale {distanceScale} in {MAX_ATTEMPTS} tries")
+    raise RuntimeError(f"Couldn't sample random point near {origin} with scale {distanceScale} in {MAX_ATTEMPTS} tries")

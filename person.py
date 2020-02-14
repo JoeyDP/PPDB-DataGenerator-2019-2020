@@ -2,7 +2,11 @@ import pickle
 import os
 from os.path import isfile
 import random
-from datetime import datetime, time, timedelta
+import logging
+from datetime import date, time, timedelta
+
+from distribution import BernoulliDistribution, NormalDurationDistribution, NormalTimeDistribution
+from settings import WORK_DISTANCE_SCALE, HOBBY_DISTANCE_SCALE, MAX_ATTEMPTS
 
 import geometry
 
@@ -44,19 +48,35 @@ class Person(object):
         people = [Person.loadFrom(file) for file in files]
         return people
 
+    def generateRidesForDay(self, day):
+        for activity in self.activities:
+            pass
 
-WORK_DISTANCE_SCALE = 1
-HOBBY_DISTANCE_SCALE = 0.8
+    def addNotificationTime(self, ride, minTimeNotification):
+        pass
+
+
+class Activity(object):
+    def __init__(self, startDistribution, durationDistribution, chanceDistribution, locations):
+        self.startDistribution = startDistribution
+        self.durationDistribution = durationDistribution
+        self.chance = chanceDistribution
+        self.locations = locations
 
 
 class WorkerPerson(Person):
     def __init__(self, firstname, lastname, username, password, home, workActivity, hobbyActivity):
         super().__init__(firstname, lastname, username, password, home)
 
-        self.work = geometry.sampleLocationNear(self.home, WORK_DISTANCE_SCALE)
+        self.workActivity = workActivity
+        self.hobbyActivity = hobbyActivity
 
         self.activities.append(workActivity)
         self.activities.append(hobbyActivity)
+
+    @property
+    def work(self):
+        return self.workActivity.locations[0]
 
 
 class WorkerPersonGenerator(object):
@@ -81,23 +101,27 @@ class WorkerPersonGenerator(object):
     def sampleHobbyChance(self):
         return BernoulliDistribution(randomChance(0.4, 0.3))
 
-    def generate(self, firstname, lastname, username, password, home, amountHobbies):
+    def generate(self, firstname, lastname, username, password, home):
         work = geometry.sampleLocationNear(home, WORK_DISTANCE_SCALE)
         workActivity = Activity(self.sampleWorkStartTime(), self.sampleWorkDuration(), self.sampleWorkChance(), [work])
 
-        hobbyLocations = [geometry.sampleLocationNear(home, HOBBY_DISTANCE_SCALE) for _ in range(amountHobbies)]
+        hobbyLocations = [geometry.sampleLocationNear(home, HOBBY_DISTANCE_SCALE) for _ in range(random.randint(1, 8))]
         hobbyActivity = Activity(self.sampleHobbyStartTime, self.sampleHobbyDuration(), self.sampleHobbyChance(), hobbyLocations)
 
         return WorkerPerson(firstname, lastname, username, password, home, workActivity, hobbyActivity)
 
 
+
 def randomTime(mean, stddev):
-    d = datetime.today()
+    d = date.today()
     dist = NormalTimeDistribution(mean, stddev)
-    while True:
-        t = dist.sampleTime(d)
+    for _ in range(MAX_ATTEMPTS):
+        t = dist.sample(d)
         if t.date() == d:
             return t.time()
+
+    logging.error(f"Couldn't sample random time in {MAX_ATTEMPTS} tries with mean {mean} and stddev {stddev}")
+    raise RuntimeError(f"Couldn't sample random time in {MAX_ATTEMPTS} tries with mean {mean} and stddev {stddev}")
 
 
 def randomTimedelta(mean, stddev):
@@ -108,57 +132,5 @@ def randomTimedelta(mean, stddev):
 def randomChance(mean, stddev):
     return min(1, max(0, random.normalvariate(mean, stddev)))
 
-
-class Distribution(object):
-    def __init__(self):
-        pass
-
-    def sample(self):
-        raise NotImplementedError()
-
-
-class BernoulliDistribution(Distribution):
-    def __init__(self, chance):
-        super().__init__()
-        self.chance = chance
-
-    def sample(self):
-        return random.random() <= self.chance
-
-
-class NormalDurationDistribution(Distribution):
-    def __init__(self, mean, stddev):
-        super().__init__()
-        self.mean = mean
-        self.stddev = stddev
-
-    def sampleTime(self, date):
-        return timedelta(hours=max(0, random.normalvariate(self.mean, self.stddev)))
-
-
-class TimeDistribution(object):
-    def __init__(self):
-        pass
-
-    def sampleTime(self, date):
-        raise NotImplementedError()
-
-
-class NormalTimeDistribution(TimeDistribution):
-    def __init__(self, mean, stddev):
-        super().__init__()
-        self.mean = mean
-        self.stddev = stddev
-
-    def sampleTime(self, date):
-        return random.normalvariate(datetime.combine(date, self.mean), self.stddev)
-
-
-class Activity(object):
-    def __init__(self, startDistribution, durationDistribution, chanceDistribution, locations):
-        self.startDistribution = startDistribution
-        self.durationDistribution = durationDistribution
-        self.chance = chanceDistribution
-        self.locations = locations
 
 

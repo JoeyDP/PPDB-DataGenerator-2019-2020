@@ -1,9 +1,14 @@
 import bacli
-from person import Person, WorkerPerson
+from person import Person, WorkerPerson, WorkerPersonGenerator
 import names
 import username_generator
 
 import geometry
+
+import logging
+
+logging.basicConfig(filename="generator.log", format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s', level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler())
 
 
 def generatePerson():
@@ -13,11 +18,11 @@ def generatePerson():
 	username = username_generator.get_uname(0, 255, False)
 	home = geometry.sampleRandomLocation()
 
-	person = WorkerPerson(firstname, lastname, username, password, home, 1)
+	person = WorkerPersonGenerator().generate(firstname, lastname, username, password, home)
 
-	print(person.home)
-	print(person.work)
-	print(geometry.distance(person.home, person.work).km)
+	logging.debug(person.home)
+	logging.debug(person.work)
+	logging.debug(geometry.distance(person.home, person.work).km)
 
 	return person
 
@@ -26,7 +31,7 @@ with bacli.cli() as cli:
 
 	@cli.command
 	def generatePeople(directory: str, amount: int = 1):
-		print(f"Generating {amount} people.")
+		logging.info(f"Generating {amount} people.")
 		for i in range(amount):
 			person = generatePerson()
 			person.saveTo(directory)

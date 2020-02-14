@@ -1,6 +1,11 @@
 from util import daterange
 from datetime import timedelta
 
+from cached_property import cached_property
+from geopy.distance import distance
+
+from settings import SPEED
+
 
 class Ride(object):
     def __init__(self, person, origin, destination, arriveBy, passengers, notificationTime):
@@ -14,9 +19,16 @@ class Ride(object):
     def __lt__(self, other):
         return self.arriveBy < other.arriveBy
 
+    @cached_property
+    def distance(self):
+        return distance(self.origin, self.destination).km
+
+    @cached_property
+    def travelTime(self):
+        return timedelta(seconds=self.distance / SPEED)
+
     def rescheduleNotificationTime(self, minTime):
-        pass
-        # self.person
+        self.person.addNotificationTime(self, minTime)
 
 
 class PersonRides(object):
@@ -39,4 +51,8 @@ class PersonRides(object):
 
     def generateDay(self, day, minTimeNotification):
         # print(f"Generating day: {day}")
-        pass
+        rides = self.person.generateRidesForDay(day)
+        for ride in rides:
+            self.person.addNotificationTime(ride, minTimeNotification)
+
+        self.rides.extend(rides)

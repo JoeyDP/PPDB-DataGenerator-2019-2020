@@ -10,16 +10,12 @@ from ride import PersonRides
 
 from datetime import date, datetime, timedelta
 
+from settings import *
 
-DATA_FILE = "state"
-PEOPLE_DIR = "users"
-EPSILON_NOTIFICATION = timedelta(minutes=1)
-MINIMUM_ARRIVEBY_MARGIN = timedelta(hours=1)
+import logging
 
-GENERATE_DAYS = timedelta(days=7)
-
-MAX_SLEEP_TIME = timedelta(hours=1)
-RETRY_DELAY = timedelta(minutes=5)
+logging.basicConfig(filename="simulator.log", format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s', level=logging.DEBUG)
+logging.getLogger().addHandler(logging.StreamHandler())
 
 
 def generateRides(people, endDay):
@@ -29,7 +25,7 @@ def generateRides(people, endDay):
 
 
 def sleep(sleeptime):
-    print(f"Sleeping for: {sleeptime}")
+    logging.debug(f"Sleeping for: {sleeptime}")
     time.sleep(sleeptime.seconds)
 
 
@@ -73,31 +69,36 @@ def updateAll(directory, generateUntil, state, ridesMap):
 def checkNextRide(schedule):
     notificationTime, nextRide = schedule.get()
 
+    logging.info(f"Next ride: {nextRide}")
+
     if notificationTime <= datetime.now():
         # notification time passed
-        if nextRide.arriveBy < datetime.now() + MINIMUM_ARRIVEBY_MARGIN:
+        if nextRide.arriveBy < datetime.now() + nextRide.travelTime * MINIMUM_TRAVEL_MARGIN:
             # Too late to notify still -> discard
-            print(f"Discarded: {nextRide}, too late")
+            logging.info(f"Discarded, too late")
             pass
         elif datetime.now() - notificationTime < EPSILON_NOTIFICATION:
             # Need to notify
             # If failed, reschedule notification
-            print(f"Notifying ride: {nextRide}")
+            logging.info(f"Notifying")
             status = notify(nextRide)
             if not status:
-                print(f"Notify failed")
-                print(f"Retrying in {RETRY_DELAY}")
+                logging.info(f"Notify failed")
+                logging.info(f"Retrying in {RETRY_DELAY}")
                 nextRide.notificationTime += RETRY_DELAY
                 scheduleRide(nextRide, schedule)
             else:
-                print("Succes!")
+                logging.info("Succes!")
         else:
             # Notification somewhere in past
             # Resample notification time and reschedule
-            print(f"Missed notification for ride: {nextRide}")
-            print("Rescheduling notification")
+            logging.warning(f"Missed notification for ride")
+            logging.warning("Rescheduling notification")
             nextRide.rescheduleNotificationTime(datetime.now())
             scheduleRide(nextRide, schedule)
+            logging.warning(f"Notification rescheduled to {notificationTime}")
+    else:
+        logging.info("Notification in future, skipping")
 
 
 with bacli.cli() as cli:
@@ -123,7 +124,7 @@ with bacli.cli() as cli:
 
                 # Generate rides and update users
                 if update:
-                    print("Performing update")
+                    logging.info("Performing update")
                     schedule = updateAll(directory, generateUntil, state, ridesMap)
                     update = False
 
