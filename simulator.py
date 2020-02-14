@@ -14,9 +14,6 @@ import sender
 from settings import MAX_SLEEP_TIME, PEOPLE_DIR, EPSILON_NOTIFICATION, RETRY_DELAY, DATA_FILE, GENERATE_DAYS
 
 
-logging.basicConfig(filename="simulator.log", format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s', level=logging.DEBUG)
-logging.getLogger().addHandler(logging.StreamHandler())
-
 
 def generateRides(people, endDay):
     minStartTime = datetime.now()
@@ -99,13 +96,14 @@ def checkNextRide(schedule, url, state):
             # If failed, reschedule notification
             logging.info(f"Notifying")
             status = notify(nextRide, url)
-            if not status:
-                logging.info(f"Notify failed")
+            if status:
+                logging.info("Succes!")
+                removeRide(nextRide, state)
+            else:
+                logging.info("Notify failed")
                 logging.info(f"Retrying in {RETRY_DELAY}")
                 nextRide.notificationTime += RETRY_DELAY
                 scheduleRide(nextRide, schedule)
-            else:
-                logging.info("Succes!")
         else:
             # Notification somewhere in past
             # Resample notification time and reschedule
@@ -169,6 +167,11 @@ with bacli.cli() as cli:
 
     @cli.command
     def run(directory: str, url: str):
+        logging.basicConfig(filename=path.join(directory, "simulator.log"),
+                            format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s',
+                            level=logging.DEBUG)
+        logging.getLogger().addHandler(logging.StreamHandler())
+
         try:
             simulate(directory, url)
         except KeyboardInterrupt:

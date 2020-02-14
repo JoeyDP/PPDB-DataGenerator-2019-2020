@@ -20,14 +20,18 @@ class BernoulliDistribution(Distribution):
 
 
 class NormalDurationDistribution(Distribution):
-    def __init__(self, mean, stddev):
+    def __init__(self, mean, stddev, trimSeconds=True):
         """ mean and stddev in hours """
         super().__init__()
         self.mean = mean
         self.stddev = stddev
+        self.trimSeconds = trimSeconds
 
     def sample(self):
-        return timedelta(hours=max(0, random.normalvariate(self.mean, self.stddev)))
+        t = timedelta(hours=max(0, random.normalvariate(self.mean, self.stddev)))
+        if self.trimSeconds:
+            return t - timedelta(seconds=t.seconds, microseconds=t.microseconds)
+        return t
 
 
 class TimeDistribution(object):
@@ -39,10 +43,14 @@ class TimeDistribution(object):
 
 
 class NormalTimeDistribution(TimeDistribution):
-    def __init__(self, mean, stddev):
+    def __init__(self, mean, stddev, trimSeconds=True):
         super().__init__()
         self.mean = mean
         self.stddev = stddev
+        self.trimSeconds = trimSeconds
 
     def sample(self, date):
-        return random.normalvariate(datetime.combine(date, self.mean), self.stddev)
+        t = random.normalvariate(datetime.combine(date, self.mean), self.stddev)
+        if self.trimSeconds:
+            return t.replace(second=0, microsecond=0)
+        return t

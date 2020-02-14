@@ -13,8 +13,15 @@ def sendGETRequest(url, data, token=None):
     headers = dict()
     if token:
         headers["Authorization"] = f"Bearer {token}"
+        logging.debug(f"and headers: {headers}")
 
-    # return requests.post(url, data, headers=headers)
+    try:
+        response = requests.get(url, data, headers=headers)
+        if response:
+            logging.debug(f"Response: {response.json()}")
+        return response
+    except requests.exceptions.RequestException:
+        logging.exception("Failed request")
 
 
 def sendPOSTRequest(url, data, token=None):
@@ -24,8 +31,15 @@ def sendPOSTRequest(url, data, token=None):
     headers = dict()
     if token:
         headers["Authorization"] = f"Bearer {token}"
+        logging.debug(f"and headers: {headers}")
 
-    # return requests.post(url, data, headers=headers)
+    try:
+        response = requests.post(url, data, headers=headers)
+        if response:
+            logging.debug(f"Response: {response.json()}")
+        return response
+    except requests.exceptions.RequestException:
+        logging.exception("Failed request")
 
 
 def register(person, baseUrl):
