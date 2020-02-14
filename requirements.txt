@@ -9,6 +9,7 @@ names==0.3.0
 numpy==1.18.1
 PyCristoforo==2.0.0
 requests==2.22.0
+scipy==1.4.1
 Shapely==1.7.0
 urllib3==1.25.8
 username-generator==2.0.0
