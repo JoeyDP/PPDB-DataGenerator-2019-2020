@@ -1,0 +1,12 @@
+[Unit]
+Description=Data generation script for PPDB carpool app
+After=network.target
+After=network-online.target
+
+[Service]
+User=generator
+ExecStart=/home/generator/script/runSimulator.sh team1
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target 
