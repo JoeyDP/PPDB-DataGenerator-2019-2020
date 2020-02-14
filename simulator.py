@@ -2,17 +2,16 @@ from queue import PriorityQueue
 import shelve
 from os import path
 import time
+import logging
+from datetime import date, datetime, timedelta
 
 import bacli
 
 from person import Person
 from ride import PersonRides
 
-from datetime import date, datetime, timedelta
+from settings import MAX_SLEEP_TIME, PEOPLE_DIR, EPSILON_NOTIFICATION, RETRY_DELAY, DATA_FILE, GENERATE_DAYS
 
-from settings import *
-
-import logging
 
 logging.basicConfig(filename="simulator.log", format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s', level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
@@ -25,13 +24,16 @@ def generateRides(people, endDay):
 
 
 def sleep(sleeptime):
-    logging.debug(f"Sleeping for: {sleeptime}")
-    time.sleep(sleeptime.seconds)
+    if sleeptime.seconds > 0:
+        sleeptime -= timedelta(microseconds=sleeptime.microseconds)
+        logging.debug(f"Sleeping for: {sleeptime}")
+        time.sleep(sleeptime.seconds)
 
 
 def notify(ride):
     """ Sends ride to webservice. Returns True if successful, False otherwise. """
     # TODO: implement
+    return False
 
 
 def getPersonRides(person, ridesMap):
@@ -45,17 +47,32 @@ def scheduleRide(ride, schedule):
     schedule.put((ride.notificationTime, ride))
 
 
-def updateAll(directory, generateUntil, state, ridesMap):
+def removeRide(ride, state):
+    logging.debug(f"Removing ride: {ride}")
+    ridesMap = state["ridesMap"]
+    personRides = ridesMap[ride.person]
+    personRides.removeRide(ride)
+
+
+def debugPrintPeopleRides(peopleRides):
+    for personRides in peopleRides:
+        logging.debug(personRides.ridesToStr())
+
+
+def updateAll(directory, generateUntil, state):
     """ Reload people, generate rides and update schedule """
     # Load people from files in folder
     people = Person.loadAllFrom(path.join(directory, PEOPLE_DIR))
 
     # Find associated PersonRides info or create if it doesn't exist yet
+    ridesMap = state["ridesMap"]
     peopleRides = [getPersonRides(person, ridesMap) for person in people]
 
     # Update all rides
     generateRides(peopleRides, generateUntil)
     state["lastGeneratedDay"] = generateUntil
+
+    # debugPrintPeopleRides(peopleRides)
 
     # Schedule them
     schedule = PriorityQueue()
@@ -66,17 +83,17 @@ def updateAll(directory, generateUntil, state, ridesMap):
     return schedule
 
 
-def checkNextRide(schedule):
+def checkNextRide(schedule, state):
     notificationTime, nextRide = schedule.get()
 
     logging.info(f"Next ride: {nextRide}")
 
-    if notificationTime <= datetime.now():
-        # notification time passed
-        if nextRide.arriveBy < datetime.now() + nextRide.travelTime * MINIMUM_TRAVEL_MARGIN:
+    if notificationTime <= datetime.now() + EPSILON_NOTIFICATION:
+        # notification time passed and too late to reschedule
+        if nextRide.lastPossibleNotificationTime < datetime.now():
             # Too late to notify still -> discard
             logging.info(f"Discarded, too late")
-            pass
+            removeRide(nextRide, state)
         elif datetime.now() - notificationTime < EPSILON_NOTIFICATION:
             # Need to notify
             # If failed, reschedule notification
@@ -99,52 +116,60 @@ def checkNextRide(schedule):
             logging.warning(f"Notification rescheduled to {notificationTime}")
     else:
         logging.info("Notification in future, skipping")
+        scheduleRide(nextRide, schedule)
+
+    logging.info("")
+
+
+def simulate(directory: str):
+    with shelve.open(path.join(directory, DATA_FILE), writeback=True) as state:
+        # Maps Person to PersonRides
+        ridesMap = state.get("ridesMap", dict())
+        state["ridesMap"] = ridesMap
+
+        # The last generated day
+        lastGeneratedDay = state.get("lastGeneratedDay", None)
+
+        update = True
+        while True:
+            # Check if update is required
+            generateUntil = date.today() + GENERATE_DAYS
+            # print("Generate until: ", generateUntil)
+            if lastGeneratedDay is None or lastGeneratedDay < generateUntil:
+                update = True
+
+            # Generate rides and update users
+            if update:
+                logging.info("Performing update")
+                state.sync()
+                schedule = updateAll(directory, generateUntil, state)
+                lastGeneratedDay = state["lastGeneratedDay"]
+                update = False
+
+            # Check if ride to be simulated
+            if schedule.empty():
+                sleep(MAX_SLEEP_TIME)
+                continue
+
+            # Simulate rides
+            checkNextRide(schedule, state)
+
+            # Check if there is a next ride
+            if schedule.empty():
+                sleep(MAX_SLEEP_TIME)
+                continue
+
+            # Sleep until next ride needs to be notified
+            notificationTime, nextRide = schedule.queue[0]
+            sleeptime = max(timedelta(seconds=0), min(MAX_SLEEP_TIME, (notificationTime - datetime.now())))
+            sleep(sleeptime)
 
 
 with bacli.cli() as cli:
 
     @cli.command
     def run(directory: str):
-        with shelve.open(path.join(directory, DATA_FILE), writeback=True) as state:
-            # Maps Person to PersonRides
-            ridesMap = state.get("ridesMap", dict())
-            state["ridesMap"] = ridesMap
-
-            # The last generated day
-            lastGeneratedDay = state.get("lastGeneratedDay", None)
-            state["lastGeneratedDay"] = lastGeneratedDay
-
-            update = True
-            while True:
-                # Check if update is required
-                generateUntil = date.today() + GENERATE_DAYS
-                # print("Generate until: ", generateUntil)
-                if lastGeneratedDay is None or lastGeneratedDay < generateUntil:
-                    update = True
-
-                # Generate rides and update users
-                if update:
-                    logging.info("Performing update")
-                    schedule = updateAll(directory, generateUntil, state, ridesMap)
-                    update = False
-
-                # Check if ride to be simulated
-                if schedule.empty():
-                    sleep(MAX_SLEEP_TIME)
-                    continue
-
-                # Simulate rides
-                checkNextRide(schedule)
-
-                # Optional: sync state (happens on close as well)
-                state.sync()
-
-                # Check if there is a next ride
-                if schedule.empty():
-                    sleep(MAX_SLEEP_TIME)
-                    continue
-
-                # Sleep until next ride needs to be notified
-                notificationTime, nextRide = schedule.queue[0]
-                sleeptime = max(timedelta(seconds=0), min(MAX_SLEEP_TIME, (notificationTime - datetime.now())))
-                sleep(sleeptime)
+        try:
+            simulate(directory)
+        except KeyboardInterrupt:
+            logging.info("Shutting down")

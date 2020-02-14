@@ -9,6 +9,7 @@ from distribution import BernoulliDistribution, NormalDurationDistribution, Norm
 from settings import WORK_DISTANCE_SCALE, HOBBY_DISTANCE_SCALE, MAX_ATTEMPTS
 
 import geometry
+from ride import Ride
 
 
 class Person(object):
@@ -18,6 +19,8 @@ class Person(object):
         self.username = username
 
         self.password = password
+
+        self.passengers = random.choice([3, 3, 3, 4, 4, 6])
 
         self.home = home
         self.activities = list()
@@ -48,20 +51,71 @@ class Person(object):
         people = [Person.loadFrom(file) for file in files]
         return people
 
+    def labelLocation(self, location):
+        return "Home" if location == self.home else location
+
     def generateRidesForDay(self, day):
+        rides = list()
+        origin = self.home
+        returnRide = None
         for activity in self.activities:
-            pass
+            if not activity.sampleOccurence():
+                continue
+
+            arrive = activity.sampleStartTime(day)
+            destination = activity.sampleLocation()
+
+            # check if possible with return ride
+            if returnRide is not None:
+                ride = Ride(self, returnRide.destination, destination, arrive, self.passengers)
+                if ride.departBy < returnRide.arriveBy:
+                    pass    # cancel return ride, leave from previous location
+                else:
+                    rides.append(returnRide)
+                    origin = returnRide.destination
+                    returnRide = None
+
+            ride = Ride(self, origin, destination, arrive, self.passengers)
+            rides.append(ride)
+            origin = destination
+
+            if not activity.sampleBridge():
+                # return ride
+                duration = activity.sampleDuration()
+                returnRide = Ride(self, origin, self.home, arrive + duration, self.passengers)
+
+        if returnRide is not None:
+            rides.append(returnRide)
+
+        return rides
 
     def addNotificationTime(self, ride, minTimeNotification):
-        pass
+        # TODO: add behaviour to this?
+        ride.notificationTime = random.uniform(minTimeNotification, ride.lastPossibleNotificationTime - timedelta(minutes=5))
 
 
 class Activity(object):
-    def __init__(self, startDistribution, durationDistribution, chanceDistribution, locations):
+    def __init__(self, startDistribution, durationDistribution, chanceDistribution, bridgeChanceDistribution, locations):
         self.startDistribution = startDistribution
         self.durationDistribution = durationDistribution
-        self.chance = chanceDistribution
+        self.chanceDistribution = chanceDistribution
+        self.bridgeChanceDistribution = bridgeChanceDistribution    # chance to connect to next activity (or not return)
         self.locations = locations
+
+    def sampleOccurence(self):
+        return self.chanceDistribution.sample()
+
+    def sampleBridge(self):
+        return self.bridgeChanceDistribution.sample()
+
+    def sampleStartTime(self, day):
+        return self.startDistribution.sample(day)
+
+    def sampleDuration(self):
+        return self.durationDistribution.sample()
+
+    def sampleLocation(self):
+        return random.choice(self.locations)
 
 
 class WorkerPerson(Person):
@@ -78,6 +132,18 @@ class WorkerPerson(Person):
     def work(self):
         return self.workActivity.locations[0]
 
+    @property
+    def hobbies(self):
+        return self.hobbyActivity.locations
+
+    def labelLocation(self, location):
+        if location == self.work:
+            return "Work"
+        elif location in self.hobbies:
+            return "Hobby" + str(self.hobbies.index(location) + 1)
+        else:
+            return super().labelLocation(location)
+
 
 class WorkerPersonGenerator(object):
     def __init__(self):
@@ -87,29 +153,34 @@ class WorkerPersonGenerator(object):
         return NormalTimeDistribution(randomTime(time(9), timedelta(hours=1)), randomTimedelta(0.5, 0.3))
 
     def sampleWorkDuration(self):
-        return NormalDurationDistribution(randomTimedelta(7, 1), randomTimedelta(1, 0.5))
+        return NormalDurationDistribution(random.normalvariate(7, 1), random.normalvariate(1, 0.5))
 
     def sampleWorkChance(self):
         return BernoulliDistribution(randomChance(0.9, 0.1))
 
+    def sampleWorkBridgeChance(self):
+        return BernoulliDistribution(randomChance(0.2, 0.2))
+
     def sampleHobbyStartTime(self):
-        return NormalTimeDistribution(randomTime(time(20), timedelta(hours=1)), randomTimedelta(2, 0.5))
+        return NormalTimeDistribution(randomTime(time(19), timedelta(hours=1)), randomTimedelta(2, 0.5))
 
     def sampleHobbyDuration(self):
-        return NormalDurationDistribution(randomTimedelta(2, 0.2), randomTimedelta(1, 0.2))
+        return NormalDurationDistribution(random.normalvariate(2, 0.2), random.normalvariate(1, 0.2))
 
     def sampleHobbyChance(self):
         return BernoulliDistribution(randomChance(0.4, 0.3))
 
+    def sampleHobbyBridgeChance(self):
+        return BernoulliDistribution(randomChance(0.2, 0.2))
+
     def generate(self, firstname, lastname, username, password, home):
         work = geometry.sampleLocationNear(home, WORK_DISTANCE_SCALE)
-        workActivity = Activity(self.sampleWorkStartTime(), self.sampleWorkDuration(), self.sampleWorkChance(), [work])
+        workActivity = Activity(self.sampleWorkStartTime(), self.sampleWorkDuration(), self.sampleWorkChance(), self.sampleWorkBridgeChance(), [work])
 
         hobbyLocations = [geometry.sampleLocationNear(home, HOBBY_DISTANCE_SCALE) for _ in range(random.randint(1, 8))]
-        hobbyActivity = Activity(self.sampleHobbyStartTime, self.sampleHobbyDuration(), self.sampleHobbyChance(), hobbyLocations)
+        hobbyActivity = Activity(self.sampleHobbyStartTime(), self.sampleHobbyDuration(), self.sampleHobbyChance(), self.sampleHobbyBridgeChance(), hobbyLocations)
 
         return WorkerPerson(firstname, lastname, username, password, home, workActivity, hobbyActivity)
-
 
 
 def randomTime(mean, stddev):
