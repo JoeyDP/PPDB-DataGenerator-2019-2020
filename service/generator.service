@@ -1,11 +1,12 @@
 [Unit]
-Description=Data generation script for PPDB carpool app
+Description=Data generation script for PPDB carpool app. Give team name as parameter when starting: systemctl start generator@team1.service.
 After=network.target
 After=network-online.target
 
 [Service]
 User=generator
-ExecStart=/home/generator/script/runSimulator.sh team1
+Environment="ARGS=%I"
+ExecStart=/home/generator/script/runSimulator.sh "$ARGS"
 Restart=on-failure
 
 [Install]
