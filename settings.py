@@ -17,3 +17,10 @@ RETRY_DELAY = datetime.timedelta(minutes=5)
 WORK_DISTANCE_SCALE = 1
 HOBBY_DISTANCE_SCALE = 0.8
 MAX_ATTEMPTS = 50
+
+
+LOGIN_PATH = "users/auth"
+REGISTER_PATH = "users/register"
+DRIVES_PATH = "drives"
+
+

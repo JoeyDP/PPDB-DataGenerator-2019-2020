@@ -9,6 +9,7 @@ import bacli
 
 from person import Person
 from ride import PersonRides
+import sender
 
 from settings import MAX_SLEEP_TIME, PEOPLE_DIR, EPSILON_NOTIFICATION, RETRY_DELAY, DATA_FILE, GENERATE_DAYS
 
@@ -30,10 +31,9 @@ def sleep(sleeptime):
         time.sleep(sleeptime.seconds)
 
 
-def notify(ride):
+def notify(ride, url):
     """ Sends ride to webservice. Returns True if successful, False otherwise. """
-    # TODO: implement
-    return False
+    return sender.notifyRide(ride, url)
 
 
 def getPersonRides(person, ridesMap):
@@ -83,7 +83,7 @@ def updateAll(directory, generateUntil, state):
     return schedule
 
 
-def checkNextRide(schedule, state):
+def checkNextRide(schedule, url, state):
     notificationTime, nextRide = schedule.get()
 
     logging.info(f"Next ride: {nextRide}")
@@ -98,7 +98,7 @@ def checkNextRide(schedule, state):
             # Need to notify
             # If failed, reschedule notification
             logging.info(f"Notifying")
-            status = notify(nextRide)
+            status = notify(nextRide, url)
             if not status:
                 logging.info(f"Notify failed")
                 logging.info(f"Retrying in {RETRY_DELAY}")
@@ -121,7 +121,7 @@ def checkNextRide(schedule, state):
     logging.info("")
 
 
-def simulate(directory: str):
+def simulate(directory: str, url: str):
     with shelve.open(path.join(directory, DATA_FILE), writeback=True) as state:
         # Maps Person to PersonRides
         ridesMap = state.get("ridesMap", dict())
@@ -152,7 +152,7 @@ def simulate(directory: str):
                 continue
 
             # Simulate rides
-            checkNextRide(schedule, state)
+            checkNextRide(schedule, url, state)
 
             # Check if there is a next ride
             if schedule.empty():
@@ -168,8 +168,8 @@ def simulate(directory: str):
 with bacli.cli() as cli:
 
     @cli.command
-    def run(directory: str):
+    def run(directory: str, url: str):
         try:
-            simulate(directory)
+            simulate(directory, url)
         except KeyboardInterrupt:
             logging.info("Shutting down")
