@@ -1,0 +1,14 @@
+bacli==1.0
+cached-property==1.5.1
+certifi==2019.11.28
+chardet==3.0.4
+geographiclib==1.50
+geopy==1.20.0
+idna==2.8
+names==0.3.0
+numpy==1.18.1
+PyCristoforo==2.0.0
+requests==2.22.0
+Shapely==1.7.0
+urllib3==1.25.8
+username-generator==2.0.0
