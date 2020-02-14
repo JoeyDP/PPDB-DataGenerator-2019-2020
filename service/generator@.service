@@ -5,9 +5,8 @@ After=network-online.target
 
 [Service]
 User=generator
-Environment="ARGS=%I"
-ExecStart=/home/generator/script/runSimulator.sh "$ARGS"
-Restart=on-failure
+ExecStart=/home/generator/script/runSimulator.sh %I
+Restart=always
 
 [Install]
 WantedBy=multi-user.target 
