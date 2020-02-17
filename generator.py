@@ -10,10 +10,6 @@ import logging
 logging.basicConfig(format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s', level=logging.DEBUG)
 logging.getLogger().addHandler(logging.StreamHandler())
 
-# debug
-import jsonpickle # pip install jsonpickle
-import json
-
 
 def generatePerson():
 	firstname = names.get_first_name()
@@ -43,9 +39,9 @@ with bacli.cli() as cli:
 	@cli.command
 	def loadPeople(directory: str):
 		people = Person.loadAllFrom(directory)
-		for person in people:
-			serialized = jsonpickle.encode(person)
-			print(json.dumps(json.loads(serialized), indent=4))
+		#for person in people:
+			#serialized = jsonpickle.encode(person)
+			#print(json.dumps(json.loads(serialized), indent=4))
 
 		# print(people)
 		# for person in people:
