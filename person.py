@@ -13,10 +13,11 @@ from ride import Ride
 
 
 class Person(object):
-    def __init__(self, firstname, lastname, username, password, home):
+    def __init__(self, firstname, lastname, username, gender, password, home):
         self.firstname = firstname
         self.lastname = lastname
         self.username = username
+        self.gender = gender
 
         self.password = password
 
@@ -53,6 +54,13 @@ class Person(object):
 
     def labelLocation(self, location):
         return "Home" if location == self.home else location
+
+    def getAdditionalData(self):
+        """ Return a dictionary with extra information that should be added when registering. """
+        return {
+            "home": self.home,
+            "gender": self.gender
+        }
 
     def generateRidesForDay(self, day):
         rides = list()
@@ -119,8 +127,8 @@ class Activity(object):
 
 
 class WorkerPerson(Person):
-    def __init__(self, firstname, lastname, username, password, home, workActivity, hobbyActivity):
-        super().__init__(firstname, lastname, username, password, home)
+    def __init__(self, firstname, lastname, username, gender, password, home, workActivity, hobbyActivity):
+        super().__init__(firstname, lastname, username, gender, password, home)
 
         self.workActivity = workActivity
         self.hobbyActivity = hobbyActivity
@@ -143,6 +151,13 @@ class WorkerPerson(Person):
             return "Hobby" + str(self.hobbies.index(location) + 1)
         else:
             return super().labelLocation(location)
+
+    def getAdditionalData(self):
+        data = super().getAdditionalData()
+        data.update({
+            "work": self.work
+        })
+        return data
 
 
 class WorkerPersonGenerator(object):
@@ -173,14 +188,14 @@ class WorkerPersonGenerator(object):
     def sampleHobbyBridgeChance(self):
         return BernoulliDistribution(randomChance(0.2, 0.2))
 
-    def generate(self, firstname, lastname, username, password, home):
+    def generate(self, firstname, lastname, username, gender, password, home):
         work = geometry.sampleLocationNear(home, WORK_DISTANCE_SCALE)
         workActivity = Activity(self.sampleWorkStartTime(), self.sampleWorkDuration(), self.sampleWorkChance(), self.sampleWorkBridgeChance(), [work])
 
         hobbyLocations = [geometry.sampleLocationNear(home, HOBBY_DISTANCE_SCALE) for _ in range(random.randint(1, 8))]
         hobbyActivity = Activity(self.sampleHobbyStartTime(), self.sampleHobbyDuration(), self.sampleHobbyChance(), self.sampleHobbyBridgeChance(), hobbyLocations)
 
-        return WorkerPerson(firstname, lastname, username, password, home, workActivity, hobbyActivity)
+        return WorkerPerson(firstname, lastname, username, gender, password, home, workActivity, hobbyActivity)
 
 
 def randomTime(mean, stddev):

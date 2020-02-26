@@ -48,7 +48,8 @@ def register(person, baseUrl):
         "firstname": person.firstname,
         "lastname": person.lastname,
         "username": person.username,
-        "password": person.password
+        "password": person.password,
+        **person.getAdditionalData()
     }
     response = sendPOSTRequest(registerUrl, data)
     if response:

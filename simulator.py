@@ -45,7 +45,7 @@ def scheduleRide(ride, schedule):
 
 
 def removeRide(ride, state):
-    logging.debug(f"Removing ride: {ride}")
+    #logging.debug(f"Removing ride: {ride}")
     ridesMap = state["ridesMap"]
     personRides = ridesMap[ride.person]
     personRides.removeRide(ride)

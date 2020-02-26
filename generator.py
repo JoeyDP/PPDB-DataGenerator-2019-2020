@@ -1,7 +1,8 @@
 import bacli
-from person import Person, WorkerPerson, WorkerPersonGenerator
+from person import Person, WorkerPersonGenerator
 import names
 import username_generator
+import random
 
 import geometry
 
@@ -12,13 +13,14 @@ logging.getLogger().addHandler(logging.StreamHandler())
 
 
 def generatePerson():
-	firstname = names.get_first_name()
+	gender = random.choice(('male', 'female'))
+	firstname = names.get_first_name(gender)
 	lastname = names.get_last_name()
 	password = "password"
 	username = username_generator.get_uname(0, 255, False)
 	home = geometry.sampleRandomLocation()
 
-	person = WorkerPersonGenerator().generate(firstname, lastname, username, password, home)
+	person = WorkerPersonGenerator().generate(firstname, lastname, username, gender, password, home)
 
 	# logging.debug(person.home)
 	# logging.debug(person.work)
