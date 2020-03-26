@@ -3,6 +3,8 @@ import shelve
 from os import path
 import time
 import logging
+from logging.handlers import RotatingFileHandler
+
 from datetime import date, datetime, timedelta
 
 import bacli
@@ -167,10 +169,19 @@ with bacli.cli() as cli:
 
     @cli.command
     def run(directory: str, url: str):
-        logging.basicConfig(filename=path.join(directory, "simulator.log"),
-                            format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s',
-                            level=logging.DEBUG)
-        logging.getLogger().addHandler(logging.StreamHandler())
+        logging.basicConfig(
+            format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s',
+            level=logging.DEBUG
+        )
+
+        logfilename = path.join(directory, "simulator.log")
+        handler = RotatingFileHandler(
+            logfilename,
+            mode='a',
+            maxBytes=5*1024*1024,
+            backupCount=1
+        )
+        logging.getLogger().addHandler(handler)
 
         try:
             simulate(directory, url)
