@@ -170,7 +170,7 @@ with bacli.cli() as cli:
     @cli.command
     def run(directory: str, url: str):
         logging.basicConfig(
-            format='[%(levelname)s]: %(message)s'
+            format=f'[{path.basename(directory)}] [%(levelname)s]: %(message)s'
         )
 
         fileHandler = RotatingFileHandler(
