@@ -170,18 +170,22 @@ with bacli.cli() as cli:
     @cli.command
     def run(directory: str, url: str):
         logging.basicConfig(
-            format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s',
-            level=logging.DEBUG
+            format='[%(levelname)s]: %(message)s'
         )
 
-        logfilename = path.join(directory, "simulator.log")
-        handler = RotatingFileHandler(
-            logfilename,
+        fileHandler = RotatingFileHandler(
+            path.join(directory, "simulator.log"),
             mode='a',
             maxBytes=5*1024*1024,
             backupCount=1
         )
-        logging.getLogger().addHandler(handler)
+        formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
+        fileHandler.setFormatter(formatter)
+
+        logging.getLogger().addHandler(fileHandler)
+        logging.getLogger().setLevel(logging.DEBUG)
+
+        logging.debug("test")
 
         try:
             simulate(directory, url)
