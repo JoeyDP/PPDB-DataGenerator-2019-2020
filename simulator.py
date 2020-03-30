@@ -169,9 +169,14 @@ with bacli.cli() as cli:
 
     @cli.command
     def run(directory: str, url: str):
-        logging.basicConfig(
-            format=f'[{path.basename(directory)}] [%(levelname)s]: %(message)s'
-        )
+        log = logging.getLogger()
+        log.setLevel(logging.DEBUG)  # this must be DEBUG to allow debug messages through
+
+        console = logging.StreamHandler()
+        console.setLevel(logging.INFO)
+        formatter = logging.Formatter(f'[{path.basename(directory)}] [%(levelname)s]: %(message)s')
+        console.setFormatter(formatter)
+        log.addHandler(console)
 
         fileHandler = RotatingFileHandler(
             path.join(directory, "simulator.log"),
@@ -181,11 +186,8 @@ with bacli.cli() as cli:
         )
         formatter = logging.Formatter('%(asctime)s [%(levelname)s]: %(message)s', datefmt='%Y-%m-%d %H:%M:%S')
         fileHandler.setFormatter(formatter)
-
-        logging.getLogger().addHandler(fileHandler)
-        logging.getLogger().setLevel(logging.DEBUG)
-
-        logging.debug("test")
+        fileHandler.setLevel(logging.DEBUG)
+        log.addHandler(fileHandler)
 
         try:
             simulate(directory, url)
