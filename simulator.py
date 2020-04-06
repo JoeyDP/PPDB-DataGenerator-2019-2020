@@ -172,11 +172,11 @@ with bacli.cli() as cli:
         log = logging.getLogger()
         log.setLevel(logging.DEBUG)  # this must be DEBUG to allow debug messages through
 
-        console = logging.StreamHandler()
-        console.setLevel(logging.INFO)
-        formatter = logging.Formatter(f'[{path.basename(directory)}] [%(levelname)s]: %(message)s')
-        console.setFormatter(formatter)
-        log.addHandler(console)
+        # console = logging.StreamHandler()
+        # console.setLevel(logging.INFO)
+        # formatter = logging.Formatter(f'[{path.basename(directory)}] [%(levelname)s]: %(message)s')
+        # console.setFormatter(formatter)
+        # log.addHandler(console)
 
         fileHandler = RotatingFileHandler(
             path.join(directory, "simulator.log"),
