@@ -1,10 +1,9 @@
-from queue import PriorityQueue
 import shelve
-from os import path
 import time
 import logging
+from os import path
+from queue import PriorityQueue
 from logging.handlers import RotatingFileHandler
-
 from datetime import date, datetime, timedelta
 
 import bacli
@@ -16,14 +15,22 @@ import sender
 from settings import MAX_SLEEP_TIME, PEOPLE_DIR, EPSILON_NOTIFICATION, RETRY_DELAY, DATA_FILE, GENERATE_DAYS
 
 
-
 def generateRides(people, endDay):
+    """
+     Have a set of people generate their rides until a certain date.
+    :param people: list of people
+    :param endDay: typically determined by current day + GENERATE_DAYS
+    """
     minStartTime = datetime.now()
     for person in people:
         person.generateUntil(endDay, minStartTime=minStartTime)
 
 
-def sleep(sleeptime):
+def sleep(sleeptime: timedelta):
+    """
+    Wrapper for time.sleep with debug log.
+    :param sleeptime: timedelta to indicate amount of time to sleep for. Microseconds are stripped.
+    """
     if sleeptime.seconds > 0:
         sleeptime -= timedelta(microseconds=sleeptime.microseconds)
         logging.debug(f"Sleeping for: {sleeptime}")
@@ -36,17 +43,19 @@ def notify(ride, url):
 
 
 def getPersonRides(person, ridesMap):
-    """ Get or create PersonRides in persistent state. """
+    """ Get or create PersonRides in persistent state (ridesMap). """
     personRides = ridesMap.get(person, PersonRides(person))
     ridesMap[person] = personRides
     return personRides
 
 
 def scheduleRide(ride, schedule):
+    """ Add a ride to the schedule. Schedule is a priority queue based on notification time. """
     schedule.put((ride.notificationTime, ride))
 
 
 def removeRide(ride, state):
+    """ Remove a ride from the persistent state. """
     #logging.debug(f"Removing ride: {ride}")
     ridesMap = state["ridesMap"]
     personRides = ridesMap[ride.person]
@@ -83,6 +92,10 @@ def updateAll(directory, generateUntil, state):
 
 
 def checkNextRide(schedule, url, state):
+    """
+    Handle the next ride that needs to be notified.
+    Depending on the time to be notified and the time of the ride, decide to either send, reschedule, wait or discard.
+    """
     notificationTime, nextRide = schedule.get()
 
     logging.info(f"Next ride: {nextRide}")
@@ -122,6 +135,13 @@ def checkNextRide(schedule, url, state):
 
 
 def simulate(directory: str, url: str):
+    """
+    Main loop of the simulation. Loads the persistent state of rides from file and creates a priority queue based on
+    the notifications times. People generate rides up to GENERATE_DAYS in the future, which are send to the webservice
+    on their notification time.
+    :param directory: data directory for the simulation. Should contain a users/ dir with users and a state file will be created
+    :param url: base url of the webservice
+    """
     with shelve.open(path.join(directory, DATA_FILE), writeback=True) as state:
         # Maps Person to PersonRides
         ridesMap = state.get("ridesMap", dict())
@@ -146,13 +166,9 @@ def simulate(directory: str, url: str):
                 lastGeneratedDay = state["lastGeneratedDay"]
                 update = False
 
-            # Check if ride to be simulated
-            if schedule.empty():
-                sleep(MAX_SLEEP_TIME)
-                continue
-
-            # Simulate rides
-            checkNextRide(schedule, url, state)
+            # Simulate rides by taking next ride to be notified, if any
+            if not schedule.empty():
+                checkNextRide(schedule, url, state)
 
             # Check if there is a next ride
             if schedule.empty():
@@ -165,10 +181,12 @@ def simulate(directory: str, url: str):
             sleep(sleeptime)
 
 
+# utility module for turning functions into command line interface (cli) commands
 with bacli.cli() as cli:
 
     @cli.command
     def run(directory: str, url: str):
+        """ Run the simulator for the specified directory and webservice. """
         log = logging.getLogger()
         log.setLevel(logging.DEBUG)  # this must be DEBUG to allow debug messages through
 

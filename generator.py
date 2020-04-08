@@ -1,18 +1,19 @@
+import logging
+
 import bacli
-from person import Person, WorkerPersonGenerator
 import names
 import username_generator
 import random
 
 import geometry
+from personGenerator import WorkerPersonGenerator
 
-import logging
 
 logging.basicConfig(format='%(asctime)s - %(name)s [%(levelname)s]: %(message)s', level=logging.DEBUG)
-logging.getLogger().addHandler(logging.StreamHandler())
 
 
 def generatePerson():
+	""" Generates a random WorkerPerson and returns it. """
 	gender = random.choice(('male', 'female'))
 	firstname = names.get_first_name(gender)
 	lastname = names.get_last_name()
@@ -29,25 +30,16 @@ def generatePerson():
 	return person
 
 
+# utility module for turning functions into command line interface (cli) commands
 with bacli.cli() as cli:
 
 	@cli.command
 	def generatePeople(directory: str, amount: int = 1):
+		""" generates people in the specified directory. """
 		logging.info(f"Generating {amount} people.")
 		for i in range(amount):
 			person = generatePerson()
 			person.saveTo(directory)
 
-	@cli.command
-	def loadPeople(directory: str):
-		people = Person.loadAllFrom(directory)
-		#for person in people:
-			#serialized = jsonpickle.encode(person)
-			#print(json.dumps(json.loads(serialized), indent=4))
-
-		# print(people)
-		# for person in people:
-		# 	print(person.home[1], ",", person.home[0])
-		# 	print(person.work[1], ",", person.work[0])
 
 

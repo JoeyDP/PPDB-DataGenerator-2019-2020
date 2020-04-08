@@ -3,6 +3,7 @@ from datetime import datetime, timedelta
 
 
 class Distribution(object):
+    """ Wrapper class for various statistical distributions """
     def __init__(self):
         pass
 

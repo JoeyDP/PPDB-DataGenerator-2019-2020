@@ -1,14 +1,15 @@
-from util import daterange
 from datetime import timedelta
 from collections import defaultdict
-
 from cached_property import cached_property
+
 from geopy.distance import distance
 
+from util import daterange
 from settings import SPEED, MINIMUM_TRAVEL_MARGIN
 
 
 class Ride(object):
+    """ A ride of some person. """
     def __init__(self, person, origin, destination, arriveBy, passengers):
         self.person = person
         self.notificationTime = None
@@ -47,6 +48,10 @@ class Ride(object):
 
 
 class PersonRides(object):
+    """
+    Collection of rides of a person with some utility functions.
+    Rides are separated from people because they are persisted for simulation.
+    """
     def __init__(self, person):
         self.person = person
         self.rides = list()

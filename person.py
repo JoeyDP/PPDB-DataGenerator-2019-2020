@@ -1,18 +1,18 @@
 import pickle
-import os
-from os.path import isfile
 import random
 import logging
-from datetime import date, time, timedelta
+import os
+from os.path import isfile
+from datetime import timedelta
 
-from distribution import BernoulliDistribution, NormalDurationDistribution, NormalTimeDistribution
-from settings import WORK_DISTANCE_SCALE, HOBBY_DISTANCE_SCALE, MAX_ATTEMPTS
-
-import geometry
 from ride import Ride
 
 
 class Person(object):
+    """
+    Base class for a person with behaviour. Contains minimal personal info and
+    is able to generate rides based on activities.
+    """
     def __init__(self, firstname, lastname, username, gender, password, home):
         self.firstname = firstname
         self.lastname = lastname
@@ -21,6 +21,7 @@ class Person(object):
 
         self.password = password
 
+        # Note: could make a car generator if needed
         self.passengers = random.choice([3, 3, 3, 4, 4, 6])
 
         self.home = home
@@ -40,19 +41,23 @@ class Person(object):
 
     @staticmethod
     def loadFrom(path):
+        """ Load person from file. """
         person = pickle.load(open(path, "rb"))
         return person
 
     def saveTo(self, directory):
+        """ Save person to file. Rides are not stored with the person itself. """
         pickle.dump(self, open(os.path.join(directory, str(self.username) + ".pickle"), "wb"))
 
     @staticmethod
     def loadAllFrom(directory):
+        """ Loads all people from a directory. """
         files = [os.path.join(directory, f) for f in os.listdir(directory) if isfile(os.path.join(directory, f))]
         people = [Person.loadFrom(file) for file in files]
         return people
 
     def labelLocation(self, location):
+        """ Utility function to have the person label coordinates (for pretty printing of rides). """
         return "Home" if location == self.home else location
 
     def getAdditionalData(self):
@@ -63,32 +68,41 @@ class Person(object):
         }
 
     def generateRidesForDay(self, day):
+        """ Have a person iterate over their activities to generate potential rides for one day. """
+
         rides = list()
+
+        # current location (starts from home every day)
         origin = self.home
+
+        # ride back, if any
         returnRide = None
         for activity in self.activities:
+            # for every activiy, check whether it occurs
             if not activity.sampleOccurence():
                 continue
 
             arrive = activity.sampleStartTime(day)
             destination = activity.sampleLocation()
 
-            # check if possible with return ride
+            # check if possible, given return ride
             if returnRide is not None:
                 ride = Ride(self, returnRide.destination, destination, arrive, self.passengers)
                 if ride.departBy < returnRide.arriveBy:
                     pass    # cancel return ride, leave from previous location
                 else:
+                    # return ride valid, add it
                     rides.append(returnRide)
                     origin = returnRide.destination
                     returnRide = None
 
+            # create the actual ride
             ride = Ride(self, origin, destination, arrive, self.passengers)
             rides.append(ride)
             origin = destination
 
+            # Check if return ride needs to be made. If not, person will not go home in between activities for example.
             if not activity.sampleBridge():
-                # return ride
                 duration = activity.sampleDuration()
                 returnRide = Ride(self, origin, self.home, arrive + duration, self.passengers)
 
@@ -98,35 +112,13 @@ class Person(object):
         return rides
 
     def addNotificationTime(self, ride, minTimeNotification):
-        # TODO: add behaviour to this?
+        """ Sample a random notification time for a ride uniform within the possible window. """
+        # Note: could add behaviour to this as well
         ride.notificationTime = random.uniform(minTimeNotification, ride.lastPossibleNotificationTime - timedelta(minutes=5))
 
 
-class Activity(object):
-    def __init__(self, startDistribution, durationDistribution, chanceDistribution, bridgeChanceDistribution, locations):
-        self.startDistribution = startDistribution
-        self.durationDistribution = durationDistribution
-        self.chanceDistribution = chanceDistribution
-        self.bridgeChanceDistribution = bridgeChanceDistribution    # chance to connect to next activity (or not return)
-        self.locations = locations
-
-    def sampleOccurence(self):
-        return self.chanceDistribution.sample()
-
-    def sampleBridge(self):
-        return self.bridgeChanceDistribution.sample()
-
-    def sampleStartTime(self, day):
-        return self.startDistribution.sample(day)
-
-    def sampleDuration(self):
-        return self.durationDistribution.sample()
-
-    def sampleLocation(self):
-        return random.choice(self.locations)
-
-
 class WorkerPerson(Person):
+    """ Specialized person with a job and hobbies. Person class handles generation of rides through activity system. """
     def __init__(self, firstname, lastname, username, gender, password, home, workActivity, hobbyActivity):
         super().__init__(firstname, lastname, username, gender, password, home)
 
@@ -160,63 +152,31 @@ class WorkerPerson(Person):
         return data
 
 
-class WorkerPersonGenerator(object):
-    def __init__(self):
-        pass
+class Activity(object):
+    """
+    Activities represent locations the person needs to be.
+    Occurence, start and duration are represented by distributions. Bridge chance means the user will not go home after.
+    """
+    def __init__(self, startDistribution, durationDistribution, chanceDistribution, bridgeChanceDistribution, locations):
+        self.startDistribution = startDistribution
+        self.durationDistribution = durationDistribution
+        self.chanceDistribution = chanceDistribution
+        self.bridgeChanceDistribution = bridgeChanceDistribution    # chance to connect to next activity (or not return home if no next activity)
+        self.locations = locations
 
-    def sampleWorkStartTime(self):
-        return NormalTimeDistribution(randomTime(time(9), timedelta(hours=1)), randomTimedelta(0.5, 0.3))
+    def sampleOccurence(self):
+        return self.chanceDistribution.sample()
 
-    def sampleWorkDuration(self):
-        return NormalDurationDistribution(random.normalvariate(7, 1), random.normalvariate(1, 0.5))
+    def sampleBridge(self):
+        return self.bridgeChanceDistribution.sample()
 
-    def sampleWorkChance(self):
-        return BernoulliDistribution(randomChance(0.9, 0.1))
+    def sampleStartTime(self, day):
+        return self.startDistribution.sample(day)
 
-    def sampleWorkBridgeChance(self):
-        return BernoulliDistribution(randomChance(0.2, 0.2))
+    def sampleDuration(self):
+        return self.durationDistribution.sample()
 
-    def sampleHobbyStartTime(self):
-        return NormalTimeDistribution(randomTime(time(19), timedelta(hours=1)), randomTimedelta(2, 0.5))
-
-    def sampleHobbyDuration(self):
-        return NormalDurationDistribution(random.normalvariate(2, 0.2), random.normalvariate(1, 0.2))
-
-    def sampleHobbyChance(self):
-        return BernoulliDistribution(randomChance(0.4, 0.3))
-
-    def sampleHobbyBridgeChance(self):
-        return BernoulliDistribution(randomChance(0.2, 0.2))
-
-    def generate(self, firstname, lastname, username, gender, password, home):
-        work = geometry.sampleLocationNear(home, WORK_DISTANCE_SCALE)
-        workActivity = Activity(self.sampleWorkStartTime(), self.sampleWorkDuration(), self.sampleWorkChance(), self.sampleWorkBridgeChance(), [work])
-
-        hobbyLocations = [geometry.sampleLocationNear(home, HOBBY_DISTANCE_SCALE) for _ in range(random.randint(1, 8))]
-        hobbyActivity = Activity(self.sampleHobbyStartTime(), self.sampleHobbyDuration(), self.sampleHobbyChance(), self.sampleHobbyBridgeChance(), hobbyLocations)
-
-        return WorkerPerson(firstname, lastname, username, gender, password, home, workActivity, hobbyActivity)
-
-
-def randomTime(mean, stddev):
-    d = date.today()
-    dist = NormalTimeDistribution(mean, stddev)
-    for _ in range(MAX_ATTEMPTS):
-        t = dist.sample(d)
-        if t.date() == d:
-            return t.time()
-
-    logging.error(f"Couldn't sample random time in {MAX_ATTEMPTS} tries with mean {mean} and stddev {stddev}")
-    raise RuntimeError(f"Couldn't sample random time in {MAX_ATTEMPTS} tries with mean {mean} and stddev {stddev}")
-
-
-def randomTimedelta(mean, stddev):
-    """ Mean and stddev in hours """
-    return NormalDurationDistribution(mean, stddev).sample()
-
-
-def randomChance(mean, stddev):
-    return min(1, max(0, random.normalvariate(mean, stddev)))
-
+    def sampleLocation(self):
+        return random.choice(self.locations)
 
 

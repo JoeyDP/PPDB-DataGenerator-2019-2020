@@ -7,6 +7,7 @@ from settings import LOGIN_PATH, REGISTER_PATH, DRIVES_PATH
 
 
 def sendGETRequest(url, data, token=None):
+    """ Wrapper for sending a GET request. """
     logging.debug(f"Sending GET request to: {url}")
     logging.debug(f"with data: {data}")
 
@@ -25,6 +26,7 @@ def sendGETRequest(url, data, token=None):
 
 
 def sendPOSTRequest(url, data, token=None):
+    """ Wrapper for sending a POST request. """
     logging.debug(f"Sending POST request to: {url}")
     logging.debug(f"with data: {data}")
 
@@ -43,6 +45,7 @@ def sendPOSTRequest(url, data, token=None):
 
 
 def register(person, baseUrl):
+    """ Tries to register the person on webservice at baseUrl. Returns True or False depending on success. """
     registerUrl = urljoin(baseUrl, REGISTER_PATH)
     data = {
         "firstname": person.firstname,
@@ -60,6 +63,7 @@ def register(person, baseUrl):
 
 
 def login(person, baseUrl):
+    """ Authenticates the user with a webservice. If valid, a token is returned. """
     loginUrl = urljoin(baseUrl, LOGIN_PATH)
     data = {
         "username": person.username,
@@ -74,6 +78,7 @@ def login(person, baseUrl):
 
 
 def getToken(person, baseUrl):
+    """ Tries to get a login token for a person. If login fails, tries register with login. """
     token = login(person, baseUrl)
     if token is None:
         status = register(person, baseUrl)
@@ -84,6 +89,7 @@ def getToken(person, baseUrl):
 
 
 def notifyRide(ride, baseUrl):
+    """ Sends a user ride to the webservice. """
     token = getToken(ride.person, baseUrl)
 
     if not token:
