@@ -36,7 +36,7 @@ def sendPOSTRequest(url, data, token=None):
         logging.debug(f"and headers: {headers}")
 
     try:
-        response = requests.post(url, data, headers=headers)
+        response = requests.post(url, json=data, headers=headers)
         if response:
             logging.debug(f"Response: {response.json()}")
         return response
