@@ -111,3 +111,18 @@ def notifyRide(ride, baseUrl):
     logging.debug(f"Failed to create ride. Response: {response}")
     return False
 
+
+def searchRide(ride, baseUrl):
+    """ Search for a similar ride that can be joined instead of creating a new one. """
+    pass
+
+
+def joinRide(rideId, person):
+    """ Try to join an existing ride. """
+    pass
+
+
+def notifyJoinRequest(driver, rideId, passengerId, accept: bool):
+    """ Respond to ride request with given status. """
+    pass
+

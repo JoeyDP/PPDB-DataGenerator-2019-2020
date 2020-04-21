@@ -6,26 +6,21 @@ from geopy.distance import distance
 
 from util import daterange
 from settings import SPEED, MINIMUM_TRAVEL_MARGIN
+import sender
 
 
-class Ride(object):
-    """ A ride of some person. """
-    def __init__(self, person, origin, destination, arriveBy, passengers):
-        self.person = person
-        self.notificationTime = None
+class BaseRide(object):
+    """ The base for any Ride. Contains only common information and utilities. """
+    def __init__(self, origin, destination, arriveBy):
         self.origin = origin
         self.destination = destination
         self.arriveBy = arriveBy
-        self.passengers = passengers
 
     def __lt__(self, other):
         return self.arriveBy < other.arriveBy
 
     def __str__(self):
-        origin = self.person.labelLocation(self.origin)
-        destination = self.person.labelLocation(self.destination)
-
-        return f"[{self.person.username}]: {origin} -> {destination} by {self.arriveBy.isoformat(' ', 'minutes')}, notify at {self.notificationTime.isoformat(' ', 'minutes')}"
+        return f"{self.origin} -> {self.destination} by {self.arriveBy.isoformat(' ', 'minutes')}"
 
     @cached_property
     def distance(self):
@@ -43,8 +38,70 @@ class Ride(object):
     def lastPossibleNotificationTime(self):
         return self.arriveBy - self.travelTime * MINIMUM_TRAVEL_MARGIN
 
+
+class QuerryRide(BaseRide):
+    """ Ride from the webapp. """
+    pass
+
+
+class Simulatable(object):
+    def __init__(self, person):
+        self.person = person
+        self.notificationTime = None
+
+    def notify(self, simulator):
+        return True
+
+    def rescheduleNotificationTime(self, minTime):
+        raise NotImplementedError()
+
+    @cached_property
+    def lastPossibleNotificationTime(self):
+        raise NotImplementedError()
+
+
+class Ride(BaseRide, Simulatable):
+    """ A ride of some person. """
+    def __init__(self, person, origin, destination, arriveBy, passengerPlaces):
+        BaseRide.__init__(self, origin, destination, arriveBy)
+        Simulatable.__init__(self, person)
+        self.passengerPlaces = passengerPlaces
+
+    def __str__(self):
+        origin = self.person.labelLocation(self.origin)
+        destination = self.person.labelLocation(self.destination)
+
+        return f"[{self.person.username}]: {origin} -> {destination} by {self.arriveBy.isoformat(' ', 'minutes')}, notify at {self.notificationTime.isoformat(' ', 'minutes')}"
+
+    def notify(self, simulator):
+        """
+        Sends ride to webservice. Returns True if successful, False otherwise.
+        First tries to join an existing ride, if none found, creates new ride.
+        """
+        return sender.notifyRide(self, simulator.url)
+
     def rescheduleNotificationTime(self, minTime):
         self.person.addNotificationTime(self, minTime)
+
+
+class RideRequest(Simulatable):
+    """ A ride join request to another ride. """
+
+    def __init__(self, person, ride, rideToJoin):
+        super().__init__(person)
+        self.ride = ride                # the ride the person desires (BaseRide)
+        self.rideToJoin = rideToJoin    # the ride to join (Ride)
+
+    def notify(self, simulator):
+        pass
+        # TODO
+
+    def rescheduleNotificationTime(self, minTime):
+        pass        # TODO
+
+    @cached_property
+    def lastPossibleNotificationTime(self):
+        return self.ride.lastPossibleNotificationTime
 
 
 class PersonRides(object):
