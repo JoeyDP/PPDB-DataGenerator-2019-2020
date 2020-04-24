@@ -21,5 +21,5 @@ MAX_ATTEMPTS = 50                                       # max retries to prevent
 LOGIN_PATH = "users/auth"
 REGISTER_PATH = "users/register"
 DRIVES_PATH = "drives"
-
+SEARCH_PATH = "drives/search"
 

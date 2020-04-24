@@ -3,7 +3,7 @@ from urllib.parse import urljoin
 
 import requests
 
-from settings import LOGIN_PATH, REGISTER_PATH, DRIVES_PATH
+from settings import LOGIN_PATH, REGISTER_PATH, DRIVES_PATH, SEARCH_PATH
 
 
 def sendGETRequest(url, data, token=None):
@@ -88,7 +88,7 @@ def getToken(person, baseUrl):
     return token
 
 
-def notifyRide(ride, baseUrl):
+def sendRide(ride, baseUrl):
     """ Sends a user ride to the webservice. """
     token = getToken(ride.person, baseUrl)
 
@@ -114,15 +114,30 @@ def notifyRide(ride, baseUrl):
 
 def searchRide(ride, baseUrl):
     """ Search for a similar ride that can be joined instead of creating a new one. """
-    pass
+    searchUrl = urljoin(baseUrl, SEARCH_PATH)
+
+    data = {
+        'from': ride.origin,
+        'to': ride.destination,
+        'arrive_by': ride.arriveBy.isoformat(),
+        'limit': 5,
+    }
+
+    response = sendGETRequest(searchUrl, data)
+    if not response:
+        return []
+
+    # TODO: parse response
+
+    return []
 
 
-def joinRide(rideId, person):
+def sendRideRequest(rideRequest):
     """ Try to join an existing ride. """
     pass
 
 
-def notifyJoinRequest(driver, rideId, passengerId, accept: bool):
+def notifyRideRequest(rideRequest, accept: bool):
     """ Respond to ride request with given status. """
     pass
 

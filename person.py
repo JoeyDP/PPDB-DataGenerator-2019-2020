@@ -13,7 +13,7 @@ class Person(object):
     Base class for a person with behaviour. Contains minimal personal info and
     is able to generate rides based on activities.
     """
-    def __init__(self, firstname, lastname, username, gender, password, home):
+    def __init__(self, firstname, lastname, username, gender, password, home, detourTolerance):
         self.firstname = firstname
         self.lastname = lastname
         self.username = username
@@ -25,6 +25,7 @@ class Person(object):
         self.passengers = random.choice([3, 3, 3, 4, 4, 6])
 
         self.home = home
+        self.detourTolerance = detourTolerance      # margin for how large a detour a ride request can be
         self.activities = list()
 
     def __eq__(self, other):
@@ -119,8 +120,8 @@ class Person(object):
 
 class WorkerPerson(Person):
     """ Specialized person with a job and hobbies. Person class handles generation of rides through activity system. """
-    def __init__(self, firstname, lastname, username, gender, password, home, workActivity, hobbyActivity):
-        super().__init__(firstname, lastname, username, gender, password, home)
+    def __init__(self, firstname, lastname, username, gender, password, home, detourTolerance, workActivity, hobbyActivity):
+        super().__init__(firstname, lastname, username, gender, password, home, detourTolerance)
 
         self.workActivity = workActivity
         self.hobbyActivity = hobbyActivity

@@ -37,14 +37,14 @@ class WorkerPersonGenerator(object):
     def sampleHobbyBridgeChance(self):
         return BernoulliDistribution(randomChance(0.2, 0.2))
 
-    def generate(self, firstname, lastname, username, gender, password, home):
+    def generate(self, firstname, lastname, username, gender, password, home, detourTolerance):
         work = geometry.sampleLocationNear(home, WORK_DISTANCE_SCALE)
         workActivity = Activity(self.sampleWorkStartTime(), self.sampleWorkDuration(), self.sampleWorkChance(), self.sampleWorkBridgeChance(), [work])
 
         hobbyLocations = [geometry.sampleLocationNear(home, HOBBY_DISTANCE_SCALE) for _ in range(random.randint(1, 8))]
         hobbyActivity = Activity(self.sampleHobbyStartTime(), self.sampleHobbyDuration(), self.sampleHobbyChance(), self.sampleHobbyBridgeChance(), hobbyLocations)
 
-        return WorkerPerson(firstname, lastname, username, gender, password, home, workActivity, hobbyActivity)
+        return WorkerPerson(firstname, lastname, username, gender, password, home, detourTolerance, workActivity, hobbyActivity)
 
 
 def randomTime(mean, stddev):

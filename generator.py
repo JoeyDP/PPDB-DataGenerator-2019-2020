@@ -20,8 +20,9 @@ def generatePerson():
 	password = "password"
 	username = username_generator.get_uname(0, 255, False)
 	home = geometry.sampleRandomLocation()
+	detourTolerance = min(1.2, random.normalvariate(1.7, 0.5))
 
-	person = WorkerPersonGenerator().generate(firstname, lastname, username, gender, password, home)
+	person = WorkerPersonGenerator().generate(firstname, lastname, username, gender, password, home, detourTolerance)
 
 	# logging.debug(person.home)
 	# logging.debug(person.work)
