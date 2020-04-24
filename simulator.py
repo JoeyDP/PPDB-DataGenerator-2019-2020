@@ -60,6 +60,10 @@ class Simulator(object):
     def people_path(self):
         return path.join(self.directory, PEOPLE_DIR)
 
+    @property
+    def time(self):
+        return datetime.now()
+
     def findPerson(self, personId):
         username = self.userIdMap.get(personId)
         if username:

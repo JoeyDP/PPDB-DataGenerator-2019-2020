@@ -87,9 +87,8 @@ class Ride(BaseRide, Simulatable):
         # select candidate
         for candidate in candidates:
             rideRequest = RideRequest(self, candidate)
-            # check if passenger wants to join.
-            # (Could also check whether departure time would still be possible given current time of simulator)
-            if rideRequest.passengerOk:
+            # check if passenger wants to join and whether notification time would still be possible given current time of simulator)
+            if rideRequest.passengerOk and rideRequest.lastPossibleNotificationTime > simulator.time:
                 # a good candidate is found, try to join
                 status = sender.sendRideRequest(rideRequest, simulator)
                 if status:
@@ -109,13 +108,14 @@ class Ride(BaseRide, Simulatable):
         self.person.addNotificationTime(self, minTime)
 
 
-class RideRequest(Simulatable):
+class RideRequest(BaseRide, Simulatable):
     """ A ride join request to another ride. """
 
     def __init__(self, ride, rideToJoin):
-        super().__init__()
+        BaseRide.__init__(self, rideToJoin.origin, rideToJoin.destination, rideToJoin.arriveBy)
+        Simulatable.__init__(self)
         self.ride = ride                # the ride the person desires (BaseRide)
-        self.rideToJoin = rideToJoin    # the ride to join (Ride or BaseRide)
+        self.rideToJoin = rideToJoin    # the ride to join (Ride)
 
     @cached_property
     def distance(self):
