@@ -1,13 +1,17 @@
 import logging
 from urllib.parse import urljoin
+from datetime import datetime
 
 import requests
 
-from settings import LOGIN_PATH, REGISTER_PATH, DRIVES_PATH, SEARCH_PATH
+from settings import LOGIN_PATH, REGISTER_PATH, DRIVES_PATH, SEARCH_PATH, PASSENGER_REQUEST_PATH, REQUEST_STATUS_PATH
+import ride
 
 
-def sendGETRequest(url, data, token=None):
+def sendGETRequest(url, data=None, token=None):
     """ Wrapper for sending a GET request. """
+    if data is None:
+        data = dict()
     logging.debug(f"Sending GET request to: {url}")
     logging.debug(f"with data: {data}")
 
@@ -25,8 +29,10 @@ def sendGETRequest(url, data, token=None):
         logging.exception("Failed request")
 
 
-def sendPOSTRequest(url, data, token=None):
+def sendPOSTRequest(url, data=None, token=None):
     """ Wrapper for sending a POST request. """
+    if data is None:
+        data = dict()
     logging.debug(f"Sending POST request to: {url}")
     logging.debug(f"with data: {data}")
 
@@ -44,9 +50,9 @@ def sendPOSTRequest(url, data, token=None):
         logging.exception("Failed request")
 
 
-def register(person, baseUrl):
+def register(person, simulator):
     """ Tries to register the person on webservice at baseUrl. Returns True or False depending on success. """
-    registerUrl = urljoin(baseUrl, REGISTER_PATH)
+    registerUrl = urljoin(simulator.url, REGISTER_PATH)
     data = {
         "firstname": person.firstname,
         "lastname": person.lastname,
@@ -56,51 +62,59 @@ def register(person, baseUrl):
     }
     response = sendPOSTRequest(registerUrl, data)
     if response:
+        try:
+            id = response.json().get('id')
+            simulator.registerPerson(person, id)
+        except ValueError:
+            logging.exception("Failed to extract id after register")
         return True
 
     logging.debug(f"Failed to register. Response: {response}")
     return False
 
 
-def login(person, baseUrl):
+def login(person, simulator):
     """ Authenticates the user with a webservice. If valid, a token is returned. """
-    loginUrl = urljoin(baseUrl, LOGIN_PATH)
+    loginUrl = urljoin(simulator.url, LOGIN_PATH)
     data = {
         "username": person.username,
         "password": person.password
     }
     response = sendPOSTRequest(loginUrl, data)
     if response:
-        return response.json().get("token")
+        try:
+            return response.json().get("token")
+        except ValueError:
+            logging.exception("Failed to extract token after login")
 
     logging.debug(f"Failed to login. Response: {response}")
     return None
 
 
-def getToken(person, baseUrl):
+def getToken(person, simulator):
     """ Tries to get a login token for a person. If login fails, tries register with login. """
-    token = login(person, baseUrl)
+    token = login(person, simulator)
     if token is None:
-        status = register(person, baseUrl)
+        status = register(person, simulator)
         if not status:
             return None
-        token = login(person, baseUrl)
+        token = login(person, simulator)
     return token
 
 
-def sendRide(ride, baseUrl):
+def sendRide(ride, simulator):
     """ Sends a user ride to the webservice. """
-    token = getToken(ride.person, baseUrl)
+    token = getToken(ride.person, simulator)
 
     if not token:
         logging.warning(f"No valid token for person: {ride.person}")
         return False
 
-    driveUrl = urljoin(baseUrl, DRIVES_PATH)
+    driveUrl = urljoin(simulator.url, DRIVES_PATH)
     data = {
         "from": ride.origin,
         "to": ride.destination,
-        "passenger-places": ride.passengers,
+        "passenger-places": ride.passengerPlaces,
         "arrive-by": ride.arriveBy.isoformat()
     }
 
@@ -112,14 +126,14 @@ def sendRide(ride, baseUrl):
     return False
 
 
-def searchRide(ride, baseUrl):
+def searchRide(queryRide, simulator):
     """ Search for a similar ride that can be joined instead of creating a new one. """
-    searchUrl = urljoin(baseUrl, SEARCH_PATH)
+    searchUrl = urljoin(simulator.url, SEARCH_PATH)
 
     data = {
-        'from': ride.origin,
-        'to': ride.destination,
-        'arrive_by': ride.arriveBy.isoformat(),
+        'from': queryRide.origin,
+        'to': queryRide.destination,
+        'arrive_by': queryRide.arriveBy.isoformat(),
         'limit': 5,
     }
 
@@ -127,17 +141,54 @@ def searchRide(ride, baseUrl):
     if not response:
         return []
 
-    # TODO: parse response
+    candidates = list()
+    try:
+        rides = response.json()
+        for rideData in rides:
+            candidate = ride.Ride(
+                rideData['driver-id'],
+                rideData['from'],
+                rideData['to'],
+                datetime.fromisoformat(rideData['arrive-by']),
+                rideData.get("passenger-places", 3) - len(rideData['passenger-ids']),         # I forgot to mention this in apiary, my bad.
+                rideId=rideData['id']
+            )
+            candidates.append(candidate)
 
-    return []
+    except ValueError:
+        logging.exception("Failed parsing ride from search")
+        return []
+
+    return candidates
 
 
-def sendRideRequest(rideRequest):
+def sendRideRequest(rideRequest, simulator):
     """ Try to join an existing ride. """
-    pass
+    rideId = rideRequest.rideToJoin.rideId
+    url = urljoin(simulator.url, REQUEST_STATUS_PATH.format(rideId))
+    response = sendPOSTRequest(url)
+
+    if response:
+        # could check response status as well
+        return True
+
+    return False
 
 
-def notifyRideRequest(rideRequest, accept: bool):
+def notifyRideRequest(rideRequest, accept: bool, simulator):
     """ Respond to ride request with given status. """
-    pass
+    rideId = rideRequest.rideToJoin.rideId
+    userId = simulator.findPersonId(rideRequest.ride.person)
+    url = urljoin(simulator.url, REQUEST_STATUS_PATH.format(rideId, userId))
+
+    data = {
+        'action': "accept" if accept else "reject"
+    }
+
+    response = sendPOSTRequest(url, data)
+    if response:
+        # could check response status as well
+        return True
+
+    return False
 

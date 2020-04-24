@@ -22,4 +22,5 @@ LOGIN_PATH = "users/auth"
 REGISTER_PATH = "users/register"
 DRIVES_PATH = "drives"
 SEARCH_PATH = "drives/search"
-
+PASSENGER_REQUEST_PATH = "drives/{drive-id}/passenger-requests"
+REQUEST_STATUS_PATH = "/drives/{drive_id}/passenger-requests/{user_id}"

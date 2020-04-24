@@ -47,6 +47,9 @@ class Simulator(object):
     def __init__(self, directory: str, url: str):
         self.directory = directory
         self.url = url
+
+        self.userIdMap = dict()                 # maps userIds -> usernames
+        self.people = dict()                    # maps usernames -> users
         self.schedule = PriorityQueue()
 
     @property
@@ -56,6 +59,24 @@ class Simulator(object):
     @property
     def people_path(self):
         return path.join(self.directory, PEOPLE_DIR)
+
+    def findPerson(self, personId):
+        username = self.userIdMap.get(personId)
+        if username:
+            return self.people.get(username)
+        return None
+
+    def findPersonId(self, person):
+        for userId, username in self.userIdMap.items():
+            if username == person.username:
+                return userId
+
+        return None
+
+    def registerPerson(self, person, personId):
+        if personId in self.userIdMap:
+            logging.error(f"Someone already in user map with id {personId}, overwriting")
+        self.userIdMap[personId] = person.username
 
     def simulate(self):
         """
@@ -67,8 +88,8 @@ class Simulator(object):
         """
         with shelve.open(self.data_path, writeback=True) as state:
             # Maps Person to PersonRides
-            ridesMap = state.get("ridesMap", dict())
-            state["ridesMap"] = ridesMap
+            ridesMap = state.setdefault("ridesMap", dict())
+            self.userIdMap = state.setdefault("userIdMap", dict())
 
             # The last generated day
             lastGeneratedDay = state.get("lastGeneratedDay", None)
@@ -117,11 +138,13 @@ class Simulator(object):
     def updateAll(self, generateUntil, state):
         """ Reload people, generate rides and update schedule """
         # Load people from files in folder
-        people = Person.loadAllFrom(self.people_path)
+        self.people = {p.username: p for p in Person.loadAllFrom(self.people_path)}
 
         # Find associated PersonRides info or create if it doesn't exist yet
         ridesMap = state["ridesMap"]
-        peopleRides = [getPersonRides(person, ridesMap) for person in people]
+        peopleRides = [getPersonRides(person, ridesMap) for person in self.people.values()]
+
+        self.userIdMap = state["userIdMap"]
 
         # Update all rides
         generateRides(peopleRides, generateUntil)

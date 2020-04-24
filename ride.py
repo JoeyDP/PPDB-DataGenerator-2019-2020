@@ -61,23 +61,20 @@ class Simulatable(object):
 
 class Ride(BaseRide, Simulatable):
     """ A ride of some person. """
-    def __init__(self, person, origin, destination, arriveBy, passengerPlaces):
+    def __init__(self, person, origin, destination, arriveBy, passengerPlaces, rideId=None):
         BaseRide.__init__(self, origin, destination, arriveBy)
         Simulatable.__init__(self)
         self.person = person
         self.passengerPlaces = passengerPlaces
+        self.rideId = rideId
 
     def __str__(self):
-        origin = self.person.labelLocation(self.origin)
-        destination = self.person.labelLocation(self.destination)
+        origin, destination = self.origin, self.destination
+        if hasattr(self.person, "labelLocation"):
+            origin = self.person.labelLocation(origin)
+            destination = self.person.labelLocation(destination)
 
-        return f"[{self.person.username}]: {origin} -> {destination} by {self.arriveBy.isoformat(' ', 'minutes')}, notify at {self.notificationTime.isoformat(' ', 'minutes')}"
-
-    def canJoinRide(self, otherRide):
-        # TODO: implement
-        #  check whether this person wants to join the ride
-        #  check whether departure time of otherRide
-        return False
+        return f"[{self.person}]: {origin} -> {destination} by {self.arriveBy.isoformat(' ', 'minutes')}, notify at {self.notificationTime.isoformat(' ', 'minutes')}"
 
     def notify(self, simulator):
         """
@@ -85,22 +82,28 @@ class Ride(BaseRide, Simulatable):
         First tries to join an existing ride, if none found, creates new ride.
         """
         # join ride
-        candidates = sender.searchRide(self, simulator.url)
+        candidates = sender.searchRide(self, simulator)
 
         # select candidate
         for candidate in candidates:
             rideRequest = RideRequest(self, candidate)
-            if self.canJoinRide(candidate):
+            # check if passenger wants to join.
+            # (Could also check whether departure time would still be possible given current time of simulator)
+            if rideRequest.passengerOk:
                 # a good candidate is found, try to join
-                status = sender.sendRideRequest(rideRequest)
+                status = sender.sendRideRequest(rideRequest, simulator)
                 if status:
-                    simulator.scheduleRide(rideRequest)
+                    # If it's one of our rides, schedule a rideRequest, so it can be accepted or declined by the driver
+                    driver = simulator.findPerson(rideRequest.rideToJoin.person)
+                    if driver:
+                        rideRequest.rideToJoin.person = driver
+                        simulator.scheduleRide(rideRequest)
                     return True
 
                 # if join did not work, stop trying and make own ride
                 break
 
-        return sender.sendRide(self, simulator.url)
+        return sender.sendRide(self, simulator)
 
     def rescheduleNotificationTime(self, minTime):
         self.person.addNotificationTime(self, minTime)
@@ -112,7 +115,7 @@ class RideRequest(Simulatable):
     def __init__(self, ride, rideToJoin):
         super().__init__()
         self.ride = ride                # the ride the person desires (BaseRide)
-        self.rideToJoin = rideToJoin    # the ride to join (Ride)
+        self.rideToJoin = rideToJoin    # the ride to join (Ride or BaseRide)
 
     @cached_property
     def distance(self):
@@ -136,7 +139,7 @@ class RideRequest(Simulatable):
 
     def notify(self, simulator):
         status = self.driverOk
-        return sender.notifyRideRequest(self, status)
+        return sender.notifyRideRequest(self, status, simulator)
 
     def rescheduleNotificationTime(self, minTime):
         self.rideToJoin.person.addNotificationTime(self, minTime)
