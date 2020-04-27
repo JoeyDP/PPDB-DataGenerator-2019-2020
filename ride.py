@@ -86,6 +86,9 @@ class Ride(BaseRide, Simulatable):
 
         # select candidate
         for candidate in candidates:
+            if candidate.passengerPlaces == 0:
+                continue
+
             rideRequest = RideRequest(self, candidate)
             # check if passenger wants to join and whether notification time would still be possible given current time of simulator)
             if rideRequest.passengerOk and rideRequest.lastPossibleNotificationTime > simulator.time:
