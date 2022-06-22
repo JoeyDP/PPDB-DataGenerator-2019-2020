@@ -6,7 +6,7 @@ geographiclib==1.50
 geopy==1.20.0
 idna==2.8
 names==0.3.0
-numpy==1.18.1
+numpy==1.22.0
 PyCristoforo==2.0.0
 requests==2.22.0
 scipy==1.4.1
